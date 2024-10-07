@@ -184,7 +184,7 @@ install_headscale(){
 create_user_group(){
     if ! getent group headscale >/dev/null; then
         if command -v groupadd >/dev/null; then
-            groupadd -r headscale
+            groupadd --system headscale
         elif command -v busybox >/dev/null && (busybox --list | grep addgroup >/dev/null); then
             busybox addgroup -S headscale
         else
@@ -194,9 +194,9 @@ create_user_group(){
     fi
     if ! getent passwd headscale >/dev/null; then
         if command -v useradd >/dev/null; then
-            useradd -s /bin/sh -c "headscale default user" headscale -g headscale -r
+            useradd --shell /bin/sh --comment "headscale default user" --gid headscale --system --create-home --home-dir /var/lib/headscale headscale
         elif command -v busybox >/dev/null && (busybox --list | grep adduser >/dev/null); then
-            busybox adduser -s /bin/sh -D -H -G headscale headscale
+            busybox adduser -s /bin/sh -D -G headscale -h /var/lib/headscale -S headscale
         else
             echo_yellow "We cannot find any tool to create a user, please create a user"
             echo_yellow "named headscale manually for headscale service to use."
@@ -204,9 +204,18 @@ create_user_group(){
     fi
 }
 
-check_local_version
-check_remote_version
-compare_version
-download_headscale
-install_headscale
-create_user_group
+# Download headscale config file
+download_headscale_example_config(){
+    config_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+    if ! curl -sL -# "https://github.com/juanfont/headscale/raw/refs/tags/$REMOTE_VERSION/config-example.yaml" -o "$config_temp_file"; then
+        echo_red "Failed to download headscale config.example.yaml, read the error message above"
+        echo_red "of curl and try again if it's a network issue."
+        exit 1
+    fi
+    install "$config_temp_file" /etc/headscale/config-example.yaml
+    chmod 600 /etc/headscale/config.yaml
+    echo_green "headscale config.example.yaml has been downloaded successfully, howerver,"
+    echo_green "you should copy it to config.yaml and modify it according to your needs, "
+    echo_green "never use config.example.yaml in production."
+    rm -f "$config_temp_file"
+}
