@@ -13,6 +13,14 @@ depend() {
 	need net
 }
 
+start_pre() {
+	setcap CAP_NET_BIND_SERVICE,CAP_CHOWN=+eip $command
+	if ! $command configtest; then
+		eerror "Config test failed, edit your config file and try again."
+		return 1
+	fi
+}
+
 reload() {
 	ebegin "Reloading $RC_SVCNAME"
 	/usr/bin/kill -HUP $MAINPID

@@ -148,7 +148,9 @@ download_headscale(){
     remote_version_lite=$(echo "$REMOTE_VERSION" | awk -F "v" '{print $2}')
     download_url="https://github.com/juanfont/headscale/releases/download/""$REMOTE_VERSION"/headscale_"$remote_version_lite"_"$CURRENT_OS"_"$ARCH"
     temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
-    if ! curl -sL -# "$download_url" -o "$temp_file"; then
+    echo_green "Downloading headscale..."
+    echo_green "Download URL: $download_url"
+    if ! curl -L -# "$download_url" -o "$temp_file"; then
         echo_red "Failed to download headscale, read the error message above"
         echo_red "of curl and try again if it's a network issue."
         exit 1
@@ -206,16 +208,59 @@ create_user_group(){
 
 # Download headscale config file
 download_headscale_example_config(){
+    [ -d /etc/headscale ] || mkdir -p /etc/headscale
     config_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
-    if ! curl -sL -# "https://github.com/juanfont/headscale/raw/refs/tags/$REMOTE_VERSION/config-example.yaml" -o "$config_temp_file"; then
+    echo_green "Downloading headscale config-example.yaml..."
+    if ! curl -L -# "https://github.com/juanfont/headscale/raw/refs/tags/$REMOTE_VERSION/config-example.yaml" -o "$config_temp_file"; then
         echo_red "Failed to download headscale config.example.yaml, read the error message above"
         echo_red "of curl and try again if it's a network issue."
         exit 1
     fi
     install "$config_temp_file" /etc/headscale/config-example.yaml
-    chmod 600 /etc/headscale/config.yaml
     echo_green "headscale config.example.yaml has been downloaded successfully, howerver,"
     echo_green "you should copy it to config.yaml and modify it according to your needs, "
     echo_green "never use config.example.yaml in production."
     rm -f "$config_temp_file"
 }
+
+# Install headscale service
+install_headscale_service(){
+    service_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+    if command -v systemctl >/dev/null; then
+        if [ -f /etc/systemd/system/headscale.service ]; then
+            echo_yellow "headscale.service already exists, we will not overwrite it."
+        else
+            echo_green "Downloading headscale systemd service..."
+            curl -L -# "https://github.com/MarksonHon/headscale-installer/raw/refs/heads/main/Systemd/headscale.service" -o "$service_temp_file"
+            install "$service_temp_file" /etc/systemd/system/headscale.service
+            systemctl daemon-reload
+            echo_green "headscale.service has been installed successfully."
+            rm -f "$service_temp_file"
+        fi
+    elif command -v /sbin/openrc-run >/dev/null; then
+        if [ -f /etc/init.d/headscale ]; then
+            echo_yellow "headscale service already exists, we will not overwrite it."
+        else
+            echo_green "Downloading headscale OpenRC service..."
+            curl -L -# "https://github.com/MarksonHon/headscale-installer/raw/refs/heads/main/OpenRC/headscale.openrc" -o "$service_temp_file"
+            install "$service_temp_file" /etc/init.d/headscale
+            chmod +x /etc/init.d/headscale
+            echo_green "headscale OpenRC service has been installed successfully."
+            rm -f "$service_temp_file"
+        fi
+    else
+        echo_yellow "We cannot find any supported init system, please write a service"
+        echo_yellow "file for headscale manually according to your init system."
+    fi
+}
+
+# Install headscale
+check_local_version
+check_remote_version
+compare_version
+download_headscale
+install_headscale
+create_user_group
+download_headscale_example_config
+install_headscale_service
+echo_green "headscale has been installed successfully."
