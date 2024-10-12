@@ -186,7 +186,7 @@ install_headscale(){
 create_user_group(){
     if ! getent group headscale >/dev/null; then
         if command -v groupadd >/dev/null; then
-            groupadd --system headscale
+            groupadd --system headscale --gid 1024
         else
             echo_yellow "We cannot find any tool to create a group, please create a group"
             echo_yellow "named headscale manually for headscale service to use."
@@ -194,7 +194,7 @@ create_user_group(){
     fi
     if ! getent passwd headscale >/dev/null; then
         if command -v useradd >/dev/null; then
-            useradd --shell /bin/sh --comment "headscale default user" --gid headscale --system --create-home --home-dir /var/lib/headscale headscale
+            useradd --shell /bin/sh --comment "headscale default user" --gid headscale --system --create-home --home-dir /var/lib/headscale --gid 1024 headscale
         else
             echo_yellow "We cannot find any tool to create a user, please create a user"
             echo_yellow "named headscale manually for headscale service to use."
