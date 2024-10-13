@@ -2,11 +2,10 @@
 
 name=$RC_SVCNAME
 description="headscale coordination server for Tailscale"
-supervisor="supervise-daemon"
 command="/usr/local/bin/headscale"
 command_args="serve"
-supervise_daemon_args=" -d /var/lib/headscale -k 0077"
-command_user="headscale:headscale"
+command_user="headscale"
+capabilities="cap_net_bind_service"
 
 depend() {
 	after net 
@@ -14,7 +13,6 @@ depend() {
 }
 
 start_pre() {
-	setcap CAP_NET_BIND_SERVICE,CAP_CHOWN=+eip $command
 	if ! $command configtest; then
 		eerror "Config test failed, edit your config file and try again."
 		return 1
