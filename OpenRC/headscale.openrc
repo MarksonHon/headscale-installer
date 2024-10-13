@@ -4,7 +4,9 @@ name=$RC_SVCNAME
 description="headscale coordination server for Tailscale"
 command="/usr/local/bin/headscale"
 command_args="serve"
-command_user="headscale"
+command_user="headscale:headscale"
+supervisor="supervise-daemon"
+supervise_daemon_args=" -d /var/lib/headscale -k 0077"
 capabilities="cap_net_bind_service"
 
 depend() {
@@ -12,11 +14,16 @@ depend() {
 	need net
 }
 
-start_pre() {
+checkconfig() {
 	if ! $command configtest; then
 		eerror "Config test failed, edit your config file and try again."
 		return 1
 	fi
+}
+
+start_pre() {
+	[ -d /var/run/headscale ] || mkdir -p /var/run/headscale
+	chown headscale:headscale /var/run/headscale
 }
 
 reload() {
