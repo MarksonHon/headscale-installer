@@ -52,7 +52,7 @@ elif [ "$(uname -s)" = Darwin ]; then
         "x86_64")
         ARCH="amd64"
         ;;
-        "arm64" | "aaarch64" | "arm64e" )
+        "arm64" | "aarch64" | "arm64e" )
         ARCH="arm64"
         ;;
         *)
