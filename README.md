@@ -21,7 +21,7 @@ sudo sh -c "$(curl -sL https://github.com/MarksonHon/headscale-installer/raw/ref
 If you try to install Headscale on Alpine Linux, install curl and shadow at first.
 
 ```sh
-doas apk add curl shadow
+doas apk add curl shadow libcap-setcap
 ```
 
 ### Ubuntu
