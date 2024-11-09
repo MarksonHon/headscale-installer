@@ -5,6 +5,8 @@ description="headscale coordination server for Tailscale"
 command="/usr/local/bin/headscale"
 command_args="serve"
 command_user="headscale:headscale"
+extra_commands="reload"
+pidfile="/run/$RC_SVCNAME.pid"
 supervisor="supervise-daemon"
 supervise_daemon_args=" -d /var/lib/headscale -k 0077"
 capabilities="cap_chown,cap_net_bind_service"
@@ -15,6 +17,7 @@ depend() {
 }
 
 checkconfig() {
+	ebegin "Checking configuration file"
 	if ! $command configtest; then
 		eerror "Config test failed, edit your config file and try again."
 		return 1
@@ -22,12 +25,14 @@ checkconfig() {
 }
 
 start_pre() {
-	[ -d /var/run/headscale ] || mkdir -p /var/run/headscale
+	ebegin "Checking UNIX sock directory of Headscale"
+	[ -d /var/run/headscale ] || echo "Creating UNIX sock directory of Headscale" && mkdir -p /var/run/headscale
 	chown headscale:headscale /var/run/headscale
+	checkconfig
 }
 
 reload() {
-	ebegin "Reloading $RC_SVCNAME"
-	/usr/bin/kill -HUP $MAINPID
+	ebegin "Reloading $RC_SVCNAME..."
+	/usr/bin/kill -HUP "$(cat $pidfile)"
 	eend $?
 }
