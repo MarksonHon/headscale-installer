@@ -3,7 +3,7 @@
 set -e
 
 # Colors of outputs
-if command -v tput > /dev/null; then
+if command -v tput >/dev/null; then
     color_red=$(tput setaf 1)
     color_green=$(tput setaf 2)
     color_yellow=$(tput setaf 3)
@@ -29,19 +29,19 @@ fi
 if [ "$(uname -s)" = Linux ]; then
     CURRENT_OS=linux
     case $(uname -m) in
-        "x86_64") 
+    "x86_64")
         ARCH="amd64"
         ;;
-        "armv7l")
+    "armv7l")
         ARCH="armv7"
         ;;
-        "aarch64")
+    "aarch64")
         ARCH="arm64"
         ;;
-        "i386" | "i686")
+    "i386" | "i686")
         ARCH="386"
         ;;
-        *)
+    *)
         echo_red "Unsupported architecture: $(uname -m) on $(uname -s)"
         exit 1
         ;;
@@ -49,13 +49,13 @@ if [ "$(uname -s)" = Linux ]; then
 elif [ "$(uname -s)" = Darwin ]; then
     CURRENT_OS=darwin
     case $(uname -m) in
-        "x86_64")
+    "x86_64")
         ARCH="amd64"
         ;;
-        "arm64" | "aarch64" | "arm64e" )
+    "arm64" | "aarch64" | "arm64e")
         ARCH="arm64"
         ;;
-        *)
+    *)
         echo_red "Unsupported architecture: $(uname -m) on $(uname -s)"
         exit 1
         ;;
@@ -63,10 +63,10 @@ elif [ "$(uname -s)" = Darwin ]; then
 elif [ "$(uname -s)" = FreeBSD ]; then
     CURRENT_OS=freebsd
     case $(uname -m) in
-        "amd64")
+    "amd64")
         ARCH="amd64"
         ;;
-        *)
+    *)
         echo_red "Unsupported architecture: $(uname -m) on $(uname -s)"
         exit 1
         ;;
@@ -89,7 +89,7 @@ elif command -v shasum >/dev/null 2>&1; then
     check_sha256sum() {
         shasum -a 256 "$1" | awk -F ' ' '{print$1}'
     }
-elif command -v busybox >/dev/null 2>&1 && (busybox --list | grep -w "sha256sum") ; then
+elif command -v busybox >/dev/null 2>&1 && (busybox --list | grep -w "sha256sum"); then
     check_sha256sum() {
         busybox sha256sum "$1" | awk -F ' ' '{print$1}'
     }
@@ -106,7 +106,7 @@ if ! command -v curl >/dev/null 2>&1; then
 fi
 
 # Check Local Headscale version
-check_local_version(){
+check_local_version() {
     if [ -f /usr/local/bin/headscale ]; then
         LOCAL_VERSION="$(/usr/local/bin/headscale version)"
     else
@@ -115,18 +115,30 @@ check_local_version(){
 }
 
 # Check Remote Headscale version
-check_remote_version(){
-    temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
-    if ! curl -s https://api.github.com/repos/juanfont/headscale/releases/latest -o "$temp_file"; then
-        echo_red "Failed to fetch the latest version of headscale."
+check_remote_version() {
+    temp_file=$(mktemp) || (
+        echo_red "Failed to visit TEMP dir, exits."
         exit 1
-    fi 
-    REMOTE_VERSION="$(awk -F "tag_name" '{printf $2}' < "$temp_file" | awk -F "," '{printf $1}' | awk -F '"' '{printf $3}')"
-    rm -f "$temp_file"
+    )
+    if [ "$INSTALL_BETA" = true ]; then
+        if ! curl -s https://api.github.com/repos/juanfont/headscale/tags -o "$temp_file"; then
+            echo_red "Failed to fetch the latest version of headscale."
+            exit 1
+        fi
+        REMOTE_VERSION=$(grep '"name": ' <$temp_file | head -n 1 | awk -F ':' '{print $2}' | awk -F '"' '{print $2}')
+        rm -f $temp_file
+    else
+        if ! curl -s https://api.github.com/repos/juanfont/headscale/releases/latest -o "$temp_file"; then
+            echo_red "Failed to fetch the latest version of headscale."
+            exit 1
+        fi
+        REMOTE_VERSION="$(awk -F "tag_name" '{printf $2}' <"$temp_file" | awk -F "," '{printf $1}' | awk -F '"' '{printf $3}')"
+        rm -f "$temp_file"
+    fi
 }
 
 # Compare Local and Remote Headscale version
-compare_version(){
+compare_version() {
     if [ "$LOCAL_VERSION" = "$REMOTE_VERSION" ]; then
         echo_green "You are using the latest version of headscale."
         echo_green "Current version: $LOCAL_VERSION"
@@ -138,16 +150,23 @@ compare_version(){
         exit 0
     else
         echo_yellow "A new version of headscale is available."
-        echo_yellow "Local version: $LOCAL_VERSION"
+        if [ "$LOCAL_VERSION" = "v0.0.0" ]; then
+            echo_yellow "You are no headscale installed."
+        else
+            echo_yellow "Local version: $LOCAL_VERSION"
+        fi
         echo_yellow "Remote version: $REMOTE_VERSION"
     fi
 }
 
 # Download headscale
-download_headscale(){
+download_headscale() {
     remote_version_lite=$(echo "$REMOTE_VERSION" | awk -F "v" '{print $2}')
     download_url="https://github.com/juanfont/headscale/releases/download/""$REMOTE_VERSION"/headscale_"$remote_version_lite"_"$CURRENT_OS"_"$ARCH"
-    temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+    temp_file=$(mktemp) || (
+        echo_red "Failed to visit TEMP dir, exits."
+        exit 1
+    )
     echo_green "Downloading headscale..."
     echo_green "Download URL: $download_url"
     if ! curl -L -# "$download_url" -o "$temp_file"; then
@@ -155,14 +174,17 @@ download_headscale(){
         echo_red "of curl and try again if it's a network issue."
         exit 1
     fi
-    hash_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+    hash_temp_file=$(mktemp) || (
+        echo_red "Failed to visit TEMP dir, exits."
+        exit 1
+    )
     if ! curl -sL https://github.com/juanfont/headscale/releases/download/"$REMOTE_VERSION"/checksums.txt -o "$hash_temp_file"; then
         echo_red "Failed to download checksums.txt, read the error message above"
         echo_red "of curl and try again if it's a network issue."
         exit 1
     fi
     SHA256SUM_LOCAL=$(check_sha256sum "$temp_file")
-    SHA256SUM_REMOTE=$(grep -w "headscale_""$remote_version_lite""_""$CURRENT_OS"_"$ARCH" < "$hash_temp_file" | grep -v ".deb" | cut -d ' ' -f 1)
+    SHA256SUM_REMOTE=$(grep -w "headscale_""$remote_version_lite""_""$CURRENT_OS"_"$ARCH" <"$hash_temp_file" | grep -v ".deb" | cut -d ' ' -f 1)
     if [ "$SHA256SUM_LOCAL" != "$SHA256SUM_REMOTE" ]; then
         echo_red "SHA256SUM of the downloaded file does not match the one from"
         echo_red "the GitHub release, please try again later, if it always fails,"
@@ -173,7 +195,7 @@ download_headscale(){
 }
 
 # Install headscale
-install_headscale(){
+install_headscale() {
     install "$temp_file" /usr/local/bin/headscale
     chmod +x /usr/local/bin/headscale
     setcap cap_net_admin=+ep /usr/local/bin/headscale
@@ -183,7 +205,7 @@ install_headscale(){
 }
 
 # Create user and group
-create_user_group(){
+create_user_group() {
     if ! getent group headscale >/dev/null; then
         if command -v groupadd >/dev/null; then
             groupadd --system headscale --gid 924
@@ -203,9 +225,12 @@ create_user_group(){
 }
 
 # Download headscale config file
-download_headscale_example_config(){
+download_headscale_example_config() {
     [ -d /etc/headscale ] || mkdir -p /etc/headscale
-    config_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+    config_temp_file=$(mktemp) || (
+        echo_red "Failed to visit TEMP dir, exits."
+        exit 1
+    )
     echo_green "Downloading headscale config-example.yaml..."
     if ! curl -L -# "https://github.com/juanfont/headscale/raw/refs/tags/$REMOTE_VERSION/config-example.yaml" -o "$config_temp_file"; then
         echo_red "Failed to download headscale config.example.yaml, read the error message above"
@@ -220,8 +245,11 @@ download_headscale_example_config(){
 }
 
 # Install headscale service
-install_headscale_service(){
-    service_temp_file=$(mktemp) || (echo_red "Failed to visit TEMP dir, exits."; exit 1)
+install_headscale_service() {
+    service_temp_file=$(mktemp) || (
+        echo_red "Failed to visit TEMP dir, exits."
+        exit 1
+    )
     if command -v systemctl >/dev/null; then
         if [ -f /etc/systemd/system/headscale.service ]; then
             echo_yellow "headscale.service already exists, we will not overwrite it."
@@ -251,6 +279,18 @@ install_headscale_service(){
 }
 
 # Install headscale
+while [ $# != 0 ]; do
+    case $1 in
+    --beta)
+        INSTALL_BETA=true
+        shift
+        ;;
+    *)
+        echo_red "Invalid argument: $1" && exit 1
+        shift
+        ;;
+    esac
+done
 check_local_version
 check_remote_version
 compare_version
