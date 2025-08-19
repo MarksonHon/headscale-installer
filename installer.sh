@@ -209,6 +209,8 @@ create_user_group() {
     if ! getent group headscale >/dev/null; then
         if command -v groupadd >/dev/null; then
             groupadd --system headscale --gid 924
+        elif command -v busybox >/dev/null; then
+            busybox addgroup headscale -S -g 924
         else
             echo_yellow "We cannot find any tool to create a group, please create a group"
             echo_yellow "named headscale manually for headscale service to use."
@@ -217,6 +219,8 @@ create_user_group() {
     if ! getent passwd headscale >/dev/null; then
         if command -v useradd >/dev/null; then
             useradd --shell /bin/sh --comment "headscale default user" --gid headscale --system --create-home --home-dir /var/lib/headscale --gid 924 --uid 924 headscale
+        elif command -v busybox >/dev/null; then
+            busybox adduser -S -s /bin/sh -h /var/lib/headscale -u 924 -G headscale headscale
         else
             echo_yellow "We cannot find any tool to create a user, please create a user"
             echo_yellow "named headscale manually for headscale service to use."
