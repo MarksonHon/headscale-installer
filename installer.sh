@@ -108,7 +108,7 @@ fi
 # Check Local Headscale version
 check_local_version() {
     if [ -f /usr/local/bin/headscale ]; then
-        LOCAL_VERSION="$(/usr/local/bin/headscale version)"
+        LOCAL_VERSION="v$(/usr/local/bin/headscale version)"
     else
         LOCAL_VERSION="v0.0.0"
     fi
@@ -126,7 +126,7 @@ check_remote_version() {
             exit 1
         fi
         REMOTE_VERSION=$(grep '"name": ' <$temp_file | head -n 1 | awk -F ':' '{print $2}' | awk -F '"' '{print $2}')
-        rm -f $temp_file
+        rm -f "$temp_file"
     else
         if ! curl -s https://api.github.com/repos/juanfont/headscale/releases/latest -o "$temp_file"; then
             echo_red "Failed to fetch the latest version of headscale."
